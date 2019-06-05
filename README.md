@@ -138,5 +138,5 @@ pickle: 0.7.4
 - [x] DataLoader
 - [x] Train
 - [x] Predict
-- [ ] Data Preprocess
+- [x] Data Preprocess
 - [ ] Make Submission

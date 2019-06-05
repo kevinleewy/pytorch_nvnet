@@ -54,6 +54,14 @@ def train_epoch(epoch, data_set, model, criterion, optimizer, opt, logger):
         'acc': format(accuracies.avg.item(), '.4f'),
         'lr': optimizer.param_groups[0]['lr']
     })
+    
+    with open("runs/train_log/log.txt", "a+") as file:
+        file.write({
+            'epoch': epoch,
+            'loss': format(losses.avg.item(), '.4f'),
+            'acc': format(accuracies.avg.item(), '.4f'),
+            'lr': optimizer.param_groups[0]['lr']
+        }.__str__() + "\n")
 
     data_set.file_close()
             

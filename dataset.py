@@ -31,10 +31,10 @@ def loadDCM(directory, sort = False):
             
     return dataset
 
-def loadNii(directory, expected_shape):
+def loadNii(directory, expected_shape, random_crop=False):
     img = None
     seg = None
-
+    
     for file in os.listdir(os.fsencode(directory)):
         filename = os.fsdecode(file)
         if filename.endswith(".nii"):
@@ -45,9 +45,11 @@ def loadNii(directory, expected_shape):
                 seg = nib.load(os.path.join(directory, filename)).get_data()
             
     D, H, W = img.shape
+    #print(img.shape)
     
     #Reject data with bad dimensions
     if H != 512 or H != W or D < 128:
+    #if H != 512 or H != W or D % 8 != 0:
         return None, None
                 
     #hack to construct full (160, 512, 512) seg matrix
@@ -58,50 +60,121 @@ def loadNii(directory, expected_shape):
     if np.max(seg) != 1 or np.min(seg) != 0:
         return None, None
     
-    
-    numOfFramesWithTumor = sum([1 if np.sum(seg[i,:,:]) > 0 else 0 for i in range(seg.shape[0])])
-    
-    #Reject seg without tumor
-    if numOfFramesWithTumor == 0:
-        return None, None
-    
-    #Hack: Get most tumor-heavy 128x128x128
-    best_left_ind = 0
-    max_tumor_volume = 0
-    if numOfFramesWithTumor <= 32:
+    if random_crop:
+        left_ind = np.random.randint(D - 128)
+        img = np.array(img[left_ind:left_ind + 128, ::4, ::4])
+        seg = np.array(seg[left_ind:left_ind + 128, ::4, ::4])
+    else:    
+        numOfFramesWithTumor = sum([1 if np.sum(seg[i,:,:]) > 0 else 0 for i in range(seg.shape[0])])
+
+        #Reject seg without tumor
+        if numOfFramesWithTumor == 0:
+            return None, None
+
+        #Hack: Get most tumor-heavy 128x128x128
         best_left_ind = 0
         max_tumor_volume = 0
-        for i in range(D-32):
-            tumor_volume = np.sum(seg[i:i+32, :, :])
-            if tumor_volume > max_tumor_volume:
-                max_tumor_volume = tumor_volume
-                best_left_ind = i
-        img = np.array(img[best_left_ind:best_left_ind+32, ::4, ::4]).repeat(4, axis=0)
-        seg = np.array(seg[best_left_ind:best_left_ind+32, ::4, ::4]).repeat(4, axis=0)
-    elif numOfFramesWithTumor <= 64:
-        best_left_ind = 0
-        max_tumor_volume = 0
-        for i in range(D-64):
-            tumor_volume = np.sum(seg[i:i+64, :, :])
-            if tumor_volume > max_tumor_volume:
-                max_tumor_volume = tumor_volume
-                best_left_ind = i
-        img = np.array(img[best_left_ind:best_left_ind+64, ::4, ::4]).repeat(2, axis=0)
-        seg = np.array(seg[best_left_ind:best_left_ind+64, ::4, ::4]).repeat(2, axis=0)
-    else:
-        best_left_ind = 0
-        max_tumor_volume = 0
-        for i in range(D-128):
-            tumor_volume = np.sum(seg[i:i+128, :, :])
-            if tumor_volume > max_tumor_volume:
-                max_tumor_volume = tumor_volume
-                best_left_ind = i
-    
-        img = np.array(img[best_left_ind:best_left_ind+128, ::4, ::4])
-        seg = np.array(seg[best_left_ind:best_left_ind+128, ::4, ::4])
+        if numOfFramesWithTumor <= 32:
+            best_left_ind = 0
+            max_tumor_volume = 0
+            for i in range(D-32):
+                tumor_volume = np.sum(seg[i:i+32, :, :])
+                if tumor_volume > max_tumor_volume:
+                    max_tumor_volume = tumor_volume
+                    best_left_ind = i
+            img = np.array(img[best_left_ind:best_left_ind+32, ::4, ::4]).repeat(4, axis=0)
+            seg = np.array(seg[best_left_ind:best_left_ind+32, ::4, ::4]).repeat(4, axis=0)
+        elif numOfFramesWithTumor <= 64:
+            best_left_ind = 0
+            max_tumor_volume = 0
+            for i in range(D-64):
+                tumor_volume = np.sum(seg[i:i+64, :, :])
+                if tumor_volume > max_tumor_volume:
+                    max_tumor_volume = tumor_volume
+                    best_left_ind = i
+            img = np.array(img[best_left_ind:best_left_ind+64, ::4, ::4]).repeat(2, axis=0)
+            seg = np.array(seg[best_left_ind:best_left_ind+64, ::4, ::4]).repeat(2, axis=0)
+        else:
+            best_left_ind = 0
+            max_tumor_volume = 0
+            for i in range(D-128):
+                tumor_volume = np.sum(seg[i:i+128, :, :])
+                if tumor_volume > max_tumor_volume:
+                    max_tumor_volume = tumor_volume
+                    best_left_ind = i
+
+            img = np.array(img[best_left_ind:best_left_ind+128, ::4, ::4])
+            seg = np.array(seg[best_left_ind:best_left_ind+128, ::4, ::4])
     
     assert img.shape == (128, 128, 128), "Patient {} img has shape {}".format(directory, img.shape)
     assert seg.shape == (128, 128, 128), "Patient {} seg has shape {}".format(directory, seg.shape)
+
+    #add one more dim for modality
+    img = img[np.newaxis, :, :, :]  
+    seg = seg[np.newaxis, :, :, :]
+    
+    return img, seg
+       
+    #return np.array(img[:, ::4, ::4]), np.array(seg[:, ::4, ::4])
+
+def crop(img, seg, expected_shape, random_crop = False):
+    
+    D, H, W = img.shape
+    
+    assert D >= 128 and H == 128 and W == 128
+    
+    if D > 128:
+
+        if random_crop:
+            left_ind = np.random.randint(D - 128)
+            img = img[left_ind:left_ind + 128, :, :]
+            seg = seg[left_ind:left_ind + 128, :, :]
+        else:    
+            numOfFramesWithTumor = sum([1 if np.sum(seg[i,:,:]) > 0 else 0 for i in range(seg.shape[0])])
+
+            #Reject seg without tumor
+            if numOfFramesWithTumor == 0:
+                return None, None
+            
+            #print("Tumor frames:",numOfFramesWithTumor,"/",D)
+
+            #Hack: Get most tumor-heavy 128x128x128
+            best_left_ind = 0
+            max_tumor_volume = 0
+            if numOfFramesWithTumor <= 32:
+                best_left_ind = 0
+                max_tumor_volume = 0
+                for i in range(D-32):
+                    tumor_volume = np.sum(seg[i:i+32, :, :])
+                    if tumor_volume > max_tumor_volume:
+                        max_tumor_volume = tumor_volume
+                        best_left_ind = i
+                img = img[best_left_ind:best_left_ind+32, :, :].repeat(4, axis=0)
+                seg = seg[best_left_ind:best_left_ind+32, :, :].repeat(4, axis=0)
+            elif numOfFramesWithTumor <= 64:
+                best_left_ind = 0
+                max_tumor_volume = 0
+                for i in range(D-64):
+                    tumor_volume = np.sum(seg[i:i+64, :, :])
+                    if tumor_volume > max_tumor_volume:
+                        max_tumor_volume = tumor_volume
+                        best_left_ind = i
+                img = img[best_left_ind:best_left_ind+64, :, :].repeat(2, axis=0)
+                seg = seg[best_left_ind:best_left_ind+64, :, :].repeat(2, axis=0)
+            else:
+                best_left_ind = 0
+                max_tumor_volume = 0
+                for i in range(D-128):
+                    tumor_volume = np.sum(seg[i:i+128, :, :])
+                    if tumor_volume > max_tumor_volume:
+                        max_tumor_volume = tumor_volume
+                        best_left_ind = i
+
+                img = img[best_left_ind:best_left_ind+128, :, :]
+                seg = seg[best_left_ind:best_left_ind+128, :, :]
+    
+    assert img.shape == (128, 128, 128), "Patient img has shape {}".format(img.shape)
+    assert seg.shape == (128, 128, 128), "Patient seg has shape {}".format(seg.shape)
 
     #add one more dim for modality
     img = img[np.newaxis, :, :, :]  
@@ -126,26 +199,68 @@ def random_flip_dimensions(n_dimensions):
             
     return axis
 
-def flip_image(image, axis):
-    try:
-        new_data = np.copy(image.get_data())
-        for axis_index in axis:
-            new_data = np.flip(new_data, axis=axis_index)
-    except TypeError:
-        new_data = np.flip(image.get_data(), axis=axis)
+# def flip_image(image, axis):
+#     try:
+#         new_data = np.copy(image.get_data())
+#         for axis_index in axis:
+#             new_data = np.flip(new_data, axis=axis_index)
+#     except TypeError:
+#         new_data = np.flip(image.get_data(), axis=axis)
         
-    return new_img_like(image, data=new_data)
+#     return new_img_like(image, data=new_data)
+
+def flip_image(image, axis):
+    new_data = np.copy(image)
+    for axis_index in axis:
+        new_data = np.flip(new_data, axis=axis_index)
+    #print("Flip:", image.shape, axis, new_data.shape)
+    return new_data
+
+# def offset_image(image, offset_factor):
+#     image_data = image.get_data()
+#     image_shape = image_data.shape
+    
+#     new_data = np.zeros(image_shape)
+
+#     assert len(image_shape) == 3, "Wrong dimessions! Expected 3 but got {0}".format(len(image_shape))
+       
+#     if len(image_shape) == 3: 
+#         new_data[:] = image_data[0][0][0] # 左上角背景点像素值
+        
+#         oz = int(image_shape[0] * offset_factor[0])
+#         oy = int(image_shape[1] * offset_factor[1])
+#         ox = int(image_shape[2] * offset_factor[2])
+#         if oy >= 0:
+#             slice_y = slice(image_shape[1]-oy)
+#             index_y = slice(oy, image_shape[1])
+#         else:
+#             slice_y = slice(-oy,image_shape[1])
+#             index_y = slice(image_shape[1] + oy)
+#         if ox >= 0:
+#             slice_x = slice(image_shape[2]-ox)
+#             index_x = slice(ox, image_shape[2])
+#         else:
+#             slice_x = slice(-ox,image_shape[2])
+#             index_x = slice(image_shape[2] + ox)
+#         if oz >= 0:
+#             slice_z = slice(image_shape[0]-oz)
+#             index_z = slice(oz, image_shape[0])
+#         else:
+#             slice_z = slice(-oz,image_shape[0])
+#             index_z = slice(image_shape[0] + oz)
+#         new_data[index_z, index_y, index_x] = image_data[slice_z,slice_y,slice_x]            
+
+#     return new_img_like(image, data=new_data)
 
 def offset_image(image, offset_factor):
-    image_data = image.get_data()
-    image_shape = image_data.shape
+    image_shape = image.shape
     
     new_data = np.zeros(image_shape)
 
     assert len(image_shape) == 3, "Wrong dimessions! Expected 3 but got {0}".format(len(image_shape))
        
     if len(image_shape) == 3: 
-        new_data[:] = image_data[0][0][0] # 左上角背景点像素值
+        new_data[:] = image[0][0][0] # 左上角背景点像素值
         
         oz = int(image_shape[0] * offset_factor[0])
         oy = int(image_shape[1] * offset_factor[1])
@@ -172,11 +287,20 @@ def offset_image(image, offset_factor):
 
     return new_img_like(image, data=new_data)
     
-def augment_image(image, flip_axis=None, offset_factor=None):
+def shift_and_scale_intensity(image, shift_factor):
+    intensity_shift = 2.0 * np.random.random(image.shape) - 1.0 #[-1.0, 1.0]
+    intensity_scale = 0.2 * np.random.random(image.shape) + 0.9 #[0.9, 1.1]
+    return (image + intensity_shift * shift_factor) * intensity_scale
+
+
+
+def augment_image(image, flip_axis=None, offset_factor=None, shift_factor=None):
     if flip_axis is not None:
         image = flip_image(image, axis=flip_axis)
     if offset_factor is not None:
         image = offset_image(image, offset_factor=offset_factor)
+    if shift_factor:
+        image = shift_and_scale_intensity(image, shift_factor=shift_factor)
         
     return image
 
@@ -311,15 +435,65 @@ class StanfordDataset(Dataset):
                     self.dataset["segs"].append(seg)
         
     def file_close(self):
-        if self.dataset is not None:
-            self.dataset = None
+        return
+#         if self.dataset is not None:
+#             self.dataset = None
             
     def get_affine(self):
         return self.affine
     
     def __getitem__(self, index):
         input_data = self.dataset["images"][index]
-        seg_label = self.dataset["segs"][index]
+        seg_label = get_target_label(self.dataset["segs"][index], self.config)
+        
+        #n_dim should be 3
+        n_dim = len(seg_label[0].shape)
+        #n_dim = len(seg_label.shape)
+
+        if self.phase == "train":
+            random_crop = self.config["random_crop"]
+            
+            if self.config["random_offset"]:
+                offset_factor = -0.25 + np.random.random(n_dim)
+            else:
+                offset_factor = None
+            if self.config["random_flip"]:
+                flip_axis = random_flip_dimensions(n_dim)
+            else:
+                flip_axis = None           
+            if self.config["random_intensity_shift"]:
+                shift_factor = 0.1
+            else:
+                shift_factor = None
+                
+                
+        elif self.phase == "validate" or self.phase == "test":
+            random_crop = False
+            offset_factor = None
+            flip_axis = None
+            shift_factor = None
+            
+        #input_data, seg_label = crop(input_data, seg_label, self.expected_shape, random_crop=random_crop)
+        
+        #add one more dim for modality
+#         input_data = input_data[np.newaxis, :, :, :]  
+#         seg_label = seg_label[np.newaxis, :, :, :]
+        
+        #print(input_data.shape)
+            
+        #Data Augmentation: Currently only flip and intensity shift works
+        data_list = []
+        for input_channel in range(input_data.shape[0]):
+            data_list.append(augment_image(
+                input_data[input_channel],
+                flip_axis=flip_axis, 
+                offset_factor=offset_factor,
+                shift_factor=shift_factor
+            ))
+        input_data = np.asarray(data_list)    
+        seg_label  = augment_image(seg_label[0], flip_axis=flip_axis, offset_factor=offset_factor)
+        if len(seg_label.shape) == 3:
+            seg_label = seg_label[np.newaxis]
             
         if self.config["VAE_enable"]:
             # Concatenate to (2, 128, 128, 128) as network output
@@ -331,6 +505,32 @@ class StanfordDataset(Dataset):
     
     def __len__(self):
         return len(self.dataset["images"])
+    
+class StanfordSmallDataset(StanfordDataset):
+        
+    def __init__(self, phase, config, limit=5):
+        super().__init__(phase, config)
+        self.limit = limit 
+        
+    def file_open(self):
+        if self.dataset is None:
+            self.dataset = { "images": [], "segs": [] }
+            count = 0
+            for subdir in os.listdir(os.fsencode(self.data_directory)):
+                if(count < self.limit):
+                    subdirname = os.fsdecode(subdir)
+                    if not subdirname.startswith("."):
+                        print("Loading from " + subdirname)
+                        image, seg = loadNii(os.path.join(self.data_directory, subdirname), self.expected_shape)
+                        if image is None or seg is None:
+                            continue
+                        self.dataset["images"].append(image)
+                        self.dataset["segs"].append(seg)
+                        count += 1
+                 
+    def file_close(self):
+        #Small dataset so no need to close
+        return           
 
 
 

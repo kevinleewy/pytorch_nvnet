@@ -56,4 +56,13 @@ def val_epoch(epoch, data_set, model, criterion, optimizer, opt, logger):
         'acc': format(accuracies.avg.item(), '.4f'),
         'lr': optimizer.param_groups[0]['lr']
     })
+    
+    with open("runs/val_log/log.txt", "a+") as file:
+        file.write({
+            'epoch': epoch,
+            'loss': format(losses.avg.item(), '.4f'),
+            'acc': format(accuracies.avg.item(), '.4f'),
+            'lr': optimizer.param_groups[0]['lr']
+        }.__str__() + "\n")
+        
     return losses.avg, accuracies.avg

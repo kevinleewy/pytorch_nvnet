@@ -179,7 +179,7 @@ class VDResampling(nn.Module):
         out = VDraw(out_vd)
         out = self.dense2(out)
         out = self.actv2(out)
-        out = out.view((1, 128, self.dense_features[0],self.dense_features[1],self.dense_features[2]))
+        out = out.view((-1, 128, self.dense_features[0],self.dense_features[1],self.dense_features[2]))
         out = self.up0(out)
         
         return out, distr
