@@ -84,13 +84,17 @@ def rebuildNii(directory, folder_name, mean, stddev):
     nib.save(final_seg_img, os.path.join(folder_name, "seg.nii"))
     nib.save(final_img, os.path.join(folder_name, "img.nii"))
 
+def printStats(img):
+    print("Shape:", img.shape)
+    print("Min:", np.min(img))
+    print("Max:", np.max(img))
+    print("Mean:", np.mean(img))
+    print("StdDev:", np.std(img))
+    print("Min index:", np.unravel_index(np.argmin(img), img.shape))
+    print("Max index:", np.unravel_index(np.argmax(img), img.shape))
     
 def main():
     directory = 'data/raw/sag'
-
-    #Calculate training data mean and stddev
-    mean, stddev, minVal, maxVal, minFile, maxFile = calculateStats(directory + '/train')
-    print(mean, stddev, minVal, maxVal, minFile, maxFile)
 
     #Calculated values
     DATASET_GLOBAL_MEAN = 321.56370587244527
@@ -99,14 +103,22 @@ def main():
     DATASET_SAG_MEAN = 319.38926782103283
     DATASET_SAG_STDDEV = 447.42789129337154
 
+    #Calculate training data mean and stddev
+    #mean, stddev, minVal, maxVal, minFile, maxFile = calculateStats(directory + '/train')
+    #print(mean, stddev, minVal, maxVal, minFile, maxFile)
+
+    mean, stddev = DATASET_SAG_MEAN, DATASET_SAG_STDDEV
+
     #Preprocess all data
     for subdir in os.listdir(os.fsencode(directory)):
         subdirname = os.fsdecode(subdir)
         if not subdirname.startswith("."):
+        #if subdirname.startswith("dicom_con"):    
             path1 = os.path.join(directory, subdirname)
             for subsubdir in os.listdir(os.fsencode(path1)):
                 subsubdirname = os.fsdecode(subsubdir)
                 if not subsubdirname.startswith("."):
+                #if subsubdirname.startswith("2493250475_"):      
                     path2 = os.path.join(path1, subsubdirname)
                     newPath = path2.replace("raw", "preprocessed")
                     rebuildNii(path2, newPath, mean, stddev)
