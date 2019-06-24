@@ -93,7 +93,7 @@ def main(args):
     assert dataset_pixels.ndim == 3
 
     #Transpose (Optional)
-    if args.transpose.:
+    if args.transpose:
         dataset_pixels = dataset_pixels.transpose(0, 2, 1)
 
     print("3D image dimension:", dataset_pixels.shape)
