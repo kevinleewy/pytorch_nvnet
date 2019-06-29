@@ -1,3 +1,5 @@
 checkpoint_models/*
 data/*
-runs/*
+runs/
+.ipynb_checkpoints/*
+__pycache__/*
