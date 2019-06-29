@@ -11,11 +11,6 @@ def calculateStats(directory):
     voxelSumSq = 0.0
     numVoxels = 0
     
-    maxVal = float('-inf')
-    maxFile = None
-    minVal = float('inf')
-    minFile = None
-    
     for subdir in os.listdir(os.fsencode(directory)):
         subdirname = os.fsdecode(subdir)
         if not subdirname.startswith("."):
@@ -29,19 +24,11 @@ def calculateStats(directory):
                         voxelSum += np.sum(img)
                         voxelSumSq += np.sum(np.square(img))
                         numVoxels += img.shape[0] * img.shape[1] * img.shape[2]
-                        ma = np.max(img)
-                        if ma > maxVal:
-                            maxVal = ma
-                            maxFile = full_file_path
-                        mi = np.min(img)
-                        if mi < minVal:
-                            minVal = mi  
-                            minFile = full_file_path
     
     mean = voxelSum / numVoxels
     stddev = (voxelSumSq / numVoxels - mean**2)**(0.5)
                     
-    return mean, stddev, minVal, maxVal, minFile, maxFile
+    return mean, stddev
 
 def rebuildNii(directory, folder_name, mean, stddev):
     img = None
@@ -104,10 +91,12 @@ def main():
     DATASET_SAG_STDDEV = 447.42789129337154
 
     #Calculate training data mean and stddev
-    #mean, stddev, minVal, maxVal, minFile, maxFile = calculateStats(directory + '/train')
-    #print(mean, stddev, minVal, maxVal, minFile, maxFile)
+    #mean, stddev = calculateStats(directory + '/train')
 
     mean, stddev = DATASET_SAG_MEAN, DATASET_SAG_STDDEV
+    
+    print("Mean:", mean)
+    print("Standard Deviation:", stddev)
 
     #Preprocess all data
     for subdir in os.listdir(os.fsencode(directory)):
@@ -125,3 +114,4 @@ def main():
                     
 if __name__ == "__main__":
     main()
+    
