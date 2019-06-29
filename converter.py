@@ -77,10 +77,13 @@ def extractPixelMatrix(dataset):
     return np.array(pixels)
 
 def saveAsNifti(data, directory, patient):
-    directory += '_' + str(i) + '/'
-    os.makedirs(directory)
+    directory = os.path.join(directory, patient)
+    try:
+        os.makedirs(directory)
+    except FileExistsError:
+        None
     data = nib.Nifti1Image(data, affine=np.eye(4))
-    nib.save(data, os.path.join(directory, "volume-" + patient + '_' + str(i) + ".nii"))
+    nib.save(data, os.path.join(directory, "volume-" + patient + ".nii"))
     
 def main(args):
 
@@ -90,23 +93,26 @@ def main(args):
     # Extract 3D Pixel Array
     dataset_pixels = extractPixelMatrix(dataset)
     
-    assert dataset_pixels.ndim == 3
+    assert dataset_pixels.ndim == 3, "Pixel matrix not 3D: " + str(dataset_pixels.shape)
 
     #Transpose (Optional)
     if args.transpose:
         dataset_pixels = dataset_pixels.transpose(0, 2, 1)
 
-    print("3D image dimension:", dataset_pixels.shape)
     D, H, W = dataset_pixels.shape
     
-    if arg.num_sweep == 1:
-        saveAsNifti(s, arg.out_dir, arg.patient)
+    if args.num_sweep == 1:
+        print("3D image dimension:", (D, H, W))
+        saveAsNifti(dataset_pixels, args.out_dir, args.patient)
+    else:    
 
-    D = D // arg.num_sweep
-    
-    #Save as .nii file
-    for i in range(arg.num_sweep):
-        saveAsNifti(dataset_pixels[D*i:D*(i+1),:,:], arg.out_dir, arg.patient)
+        D = D // args.num_sweep
+        
+        print("3D image dimension:", (D, H, W))
+
+        #Save as .nii file
+        for i in range(args.num_sweep):
+            saveAsNifti(dataset_pixels[D*i:D*(i+1),:,:], args.out_dir, args.patient + '_' + str(i))
         
 if __name__ == "__main__":
     assert args.num_sweep > 0
