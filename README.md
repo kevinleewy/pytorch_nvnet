@@ -102,6 +102,11 @@ pickle: 0.7.4
 ```
 ## Usage
 
+0. convert from DICOM to NifTI:
+  ```
+    python converter.py --src ../../Breast_MRI/Breast_MRI_EpadDownload_n233/Subject-2075553904/Study-9999.275732037660012827614250818427990595543/Series-9999.55056227271408813838943808989178922182/ --out data/raw/sag/raw_nii/ --sweeps 5 --patient 2075553904
+  ```
+
 1. data preprocessing: 
   - change the directory of brats 2018 training dataset and validation dataset
   - set dataset format
@@ -129,6 +134,11 @@ pickle: 0.7.4
   - run the script:
   ```
     python3 make_submission.py
+  ```
+
+5. segment single MRI
+  ```
+    python segment.py --src data/preprocessed/sag/preprocessed_nii/1050744920/img.nii --out data/preprocessed/sag/preprocessed_nii/1050744920/
   ```
 
 ## Implementation Details
