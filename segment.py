@@ -125,7 +125,7 @@ def main(args):
     segmentation = segment(model, config)
 
     #Save prediction
-    saveAsNifti(final_seg, args.out_dir, "probabilities")
+    saveAsNifti(segmentation, args.out_dir, "probabilities")
         
 if __name__ == "__main__":
     main(args)
