@@ -65,6 +65,7 @@ def segment(model, config):
     if D >= 128:
 
         summed_output = np.zeros((D, 128, 128))
+        denom = np.zeros((D, 1))
 
         for i in range(D-128+1):
             inputs = img[np.newaxis, np.newaxis, i:i+128, ::height_downsample_factor, ::width_downsample_factor]
@@ -80,13 +81,10 @@ def segment(model, config):
             output_array = np.asarray(outputs.tolist())
             output_array = output_array[0,0,:,:,:]
             summed_output[i:i+128, :, :] += output_array
+            denom[i:1+128] += 1
 
         for i in range(D):
-            if i < D / 2:
-                n = min(128, i + 1)
-            else:
-                n = min(128, D - i)
-            final_output[i, :, :] = summed_output[i, :, :] / n
+            final_output[i, :, :] = summed_output[i, :, :] / denom[i]
 
     else:
         inputs = np.vstack(img[:, ::height_downsample_factor, ::width_downsample_factor], np.zeros((128-D, 128, 128)))
