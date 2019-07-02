@@ -99,19 +99,19 @@ def main(args):
     if args.transpose:
         dataset_pixels = dataset_pixels.transpose(0, 2, 1)
 
+    print("3D image total dimension:", dataset_pixels.shape)
     D, H, W = dataset_pixels.shape
     
     if args.num_sweep == 1:
-        print("3D image dimension:", (D, H, W))
+        print("3D image dimension saved:", (D, H, W))
         saveAsNifti(dataset_pixels, args.out_dir, args.patient)
     else:    
 
         D = D // args.num_sweep
-        
-        print("3D image dimension:", (D, H, W))
 
         #Save as .nii file
         for i in range(args.num_sweep):
+            print("3D image dimension saved:", (D, H, W))
             saveAsNifti(dataset_pixels[D*i:D*(i+1),:,:], args.out_dir, args.patient + '_' + str(i))
         
 if __name__ == "__main__":
