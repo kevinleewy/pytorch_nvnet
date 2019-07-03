@@ -81,7 +81,7 @@ def segment(model, config):
             output_array = np.asarray(outputs.tolist())
             output_array = output_array[0,0,:,:,:]
             summed_output[i:i+128, :, :] += output_array
-            denom[i:1+128] += 1
+            denom[i:i+128] += 1
 
         for i in range(D):
             final_output[i, :, :] = summed_output[i, :, :] / denom[i]
