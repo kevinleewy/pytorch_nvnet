@@ -87,7 +87,7 @@ def segment(model, config):
             final_output[i, :, :] = summed_output[i, :, :] / denom[i]
 
     else:
-        inputs = np.vstack(img[:, ::height_downsample_factor, ::width_downsample_factor], np.zeros((128-D, 128, 128)))
+        inputs = np.vstack((img[:, ::height_downsample_factor, ::width_downsample_factor], np.zeros((128-D, 128, 128))))
         inputs = inputs[np.newaxis, np.newaxis, :, :, :]
         inputs = torch.from_numpy(inputs)
         inputs = inputs.type(torch.FloatTensor)
