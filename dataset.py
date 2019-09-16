@@ -31,7 +31,7 @@ def loadDCM(directory, sort = False):
             
     return dataset
 
-def loadNii(directory, expected_shape, random_crop=False):
+def loadNii(directory, expected_shape):
     img = None
     seg = None
     
@@ -45,90 +45,48 @@ def loadNii(directory, expected_shape, random_crop=False):
                 seg = nib.load(os.path.join(directory, filename)).get_data()
             
     D, H, W = img.shape
+    D_exp, H_exp, W_exp = expected_shape
     #print(img.shape)
+
+    height_downsample_factor = H // H_exp
+    width_downsample_factor = W // W_exp
     
     #Reject data with bad dimensions
-    if H != 512 or H != W or D < 128:
-    #if H != 512 or H != W or D % 8 != 0:
+    if H % height_downsample_factor != 0 or W % width_downsample_factor != 0:
         return None, None
-                
-    #hack to construct full (160, 512, 512) seg matrix
-#     img = np.vstack([img, np.zeros((160-D, H, W))])
-#     final_seg = np.vstack([final_seg, np.zeros((160-D, H, W))])
 
     #Reject seg with invalid data
     if np.max(seg) != 1 or np.min(seg) != 0:
         return None, None
+
+    #Downsample in H and W dimension
+    img = img[:, ::height_downsample_factor, ::width_downsample_factor]
+    seg = seg[:, ::height_downsample_factor, ::width_downsample_factor]
+
+    #Pad data if D < 128
+    if D < D_exp:
+        img = np.vstack((img, np.zeros((D_exp-D, H_exp, W_exp))))
+        seg = np.vstack((seg, np.zeros((D_exp-D, H_exp, W_exp))))    
     
-    if random_crop:
-        left_ind = np.random.randint(D - 128)
-        img = np.array(img[left_ind:left_ind + 128, ::4, ::4])
-        seg = np.array(seg[left_ind:left_ind + 128, ::4, ::4])
-    else:    
-        numOfFramesWithTumor = sum([1 if np.sum(seg[i,:,:]) > 0 else 0 for i in range(seg.shape[0])])
-
-        #Reject seg without tumor
-        if numOfFramesWithTumor == 0:
-            return None, None
-
-        #Hack: Get most tumor-heavy 128x128x128
-        best_left_ind = 0
-        max_tumor_volume = 0
-        if numOfFramesWithTumor <= 32:
-            best_left_ind = 0
-            max_tumor_volume = 0
-            for i in range(D-32):
-                tumor_volume = np.sum(seg[i:i+32, :, :])
-                if tumor_volume > max_tumor_volume:
-                    max_tumor_volume = tumor_volume
-                    best_left_ind = i
-            img = np.array(img[best_left_ind:best_left_ind+32, ::4, ::4]).repeat(4, axis=0)
-            seg = np.array(seg[best_left_ind:best_left_ind+32, ::4, ::4]).repeat(4, axis=0)
-        elif numOfFramesWithTumor <= 64:
-            best_left_ind = 0
-            max_tumor_volume = 0
-            for i in range(D-64):
-                tumor_volume = np.sum(seg[i:i+64, :, :])
-                if tumor_volume > max_tumor_volume:
-                    max_tumor_volume = tumor_volume
-                    best_left_ind = i
-            img = np.array(img[best_left_ind:best_left_ind+64, ::4, ::4]).repeat(2, axis=0)
-            seg = np.array(seg[best_left_ind:best_left_ind+64, ::4, ::4]).repeat(2, axis=0)
-        else:
-            best_left_ind = 0
-            max_tumor_volume = 0
-            for i in range(D-128):
-                tumor_volume = np.sum(seg[i:i+128, :, :])
-                if tumor_volume > max_tumor_volume:
-                    max_tumor_volume = tumor_volume
-                    best_left_ind = i
-
-            img = np.array(img[best_left_ind:best_left_ind+128, ::4, ::4])
-            seg = np.array(seg[best_left_ind:best_left_ind+128, ::4, ::4])
-    
-    assert img.shape == (128, 128, 128), "Patient {} img has shape {}".format(directory, img.shape)
-    assert seg.shape == (128, 128, 128), "Patient {} seg has shape {}".format(directory, seg.shape)
-
-    #add one more dim for modality
-    img = img[np.newaxis, :, :, :]  
-    seg = seg[np.newaxis, :, :, :]
+    #Shape check
+    assert img.shape[0] >= D_exp && img.shape[1] == H_exp && img.shape[2] == W_exp, "Patient {} img has shape {}".format(directory, img.shape)
+    assert seg.shape[0] >= D_exp && seg.shape[1] == H_exp && seg.shape[2] == W_exp, "Patient {} seg has shape {}".format(directory, seg.shape)
     
     return img, seg
-       
-    #return np.array(img[:, ::4, ::4]), np.array(seg[:, ::4, ::4])
 
 def crop(img, seg, expected_shape, random_crop = False):
     
     D, H, W = img.shape
+    D_exp, H_exp, W_exp = expected_shape
     
-    assert D >= 128 and H == 128 and W == 128
+    assert D >= D_exp and H == H_exp and W == W_exp
     
-    if D > 128:
+    if D > D_exp:
 
         if random_crop:
-            left_ind = np.random.randint(D - 128)
-            img = img[left_ind:left_ind + 128, :, :]
-            seg = seg[left_ind:left_ind + 128, :, :]
+            left_ind = np.random.randint(D - D_exp)
+            img = img[left_ind:left_ind + D_exp, :, :]
+            seg = seg[left_ind:left_ind + D_exp, :, :]
         else:    
             numOfFramesWithTumor = sum([1 if np.sum(seg[i,:,:]) > 0 else 0 for i in range(seg.shape[0])])
 
@@ -173,8 +131,8 @@ def crop(img, seg, expected_shape, random_crop = False):
                 img = img[best_left_ind:best_left_ind+128, :, :]
                 seg = seg[best_left_ind:best_left_ind+128, :, :]
     
-    assert img.shape == (128, 128, 128), "Patient img has shape {}".format(img.shape)
-    assert seg.shape == (128, 128, 128), "Patient seg has shape {}".format(seg.shape)
+    assert img.shape == expected_shape, "Patient img has shape {}".format(img.shape)
+    assert seg.shape == expected_shape, "Patient seg has shape {}".format(seg.shape)
 
     #add one more dim for modality
     img = img[np.newaxis, :, :, :]  
@@ -358,7 +316,7 @@ class BratsDataset(Dataset):
         label_data = self.data_file.root.truth[item] # truth shape:(1, 128, 128, 128)
         seg_label = get_target_label(label_data, self.config)
         self.affine = self.data_file.root.affine[item]
-        # dimessions of data
+        # dimensions of data
         n_dim = len(seg_label[0].shape)
 
         if self.phase == "train":
@@ -472,16 +430,11 @@ class StanfordDataset(Dataset):
             offset_factor = None
             flip_axis = None
             shift_factor = None
-            
-        #input_data, seg_label = crop(input_data, seg_label, self.expected_shape, random_crop=random_crop)
         
-        #add one more dim for modality
-#         input_data = input_data[np.newaxis, :, :, :]  
-#         seg_label = seg_label[np.newaxis, :, :, :]
-        
+        #Data Augmentation: Currently only random crop, flip and intensity shift works 
+        input_data, seg_label = crop(input_data, seg_label, self.expected_shape, random_crop=random_crop)
         #print(input_data.shape)
             
-        #Data Augmentation: Currently only flip and intensity shift works
         data_list = []
         for input_channel in range(input_data.shape[0]):
             data_list.append(augment_image(
