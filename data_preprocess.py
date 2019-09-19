@@ -67,7 +67,11 @@ def rebuildNii(directory, folder_name, mean, stddev):
     final_img = nib.Nifti1Image(img, affine=np.eye(4))
     final_seg_img = nib.Nifti1Image(final_seg, affine=np.eye(4))
 
-    os.makedirs(folder_name)
+    try:
+        os.makedirs(folder_name)
+    except FileExistsError:
+        None
+        
     nib.save(final_seg_img, os.path.join(folder_name, "seg.nii"))
     nib.save(final_img, os.path.join(folder_name, "img.nii"))
 
@@ -101,8 +105,8 @@ def main():
     #Preprocess all data
     for subdir in os.listdir(os.fsencode(directory)):
         subdirname = os.fsdecode(subdir)
-        if not subdirname.startswith("."):
-        #if subdirname.startswith("dicom_con"):    
+        #if not subdirname.startswith("."):
+        if subdirname.startswith("raw_nii"):    
             path1 = os.path.join(directory, subdirname)
             for subsubdir in os.listdir(os.fsencode(path1)):
                 subsubdirname = os.fsdecode(subsubdir)
@@ -110,7 +114,8 @@ def main():
                 #if subsubdirname.startswith("2493250475_"):      
                     path2 = os.path.join(path1, subsubdirname)
                     newPath = path2.replace("raw", "preprocessed")
-                    rebuildNii(path2, newPath, mean, stddev)
+                    if not os.path.exists(newPath):
+                        rebuildNii(path2, newPath, mean, stddev)
                     
 if __name__ == "__main__":
     main()
