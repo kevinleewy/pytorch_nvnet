@@ -94,6 +94,9 @@ def main():
     DATASET_SAG_MEAN = 319.38926782103283
     DATASET_SAG_STDDEV = 447.42789129337154
 
+    DATASET_AXIAL_MEAN = 327.40932279478307 
+    DATASET_AXIAL_STDDEV = 617.9735267540578
+
     #Calculate training data mean and stddev
     #mean, stddev = calculateStats(directory + '/train')
 
