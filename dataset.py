@@ -54,6 +54,9 @@ def loadNii(directory, expected_shape):
     width_downsample_factor = W // W_exp
     
     #Reject data with bad dimensions
+    if height_downsample_factor == 0 or width_downsample_factor == 0:
+        return None, None
+
     if H % height_downsample_factor != 0 or W % width_downsample_factor != 0:
         return None, None
 
