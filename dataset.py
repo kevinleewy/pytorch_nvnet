@@ -44,6 +44,8 @@ def loadNii(directory, expected_shape):
             elif filename.startswith("seg"): 
                 seg = nib.load(os.path.join(directory, filename)).get_data()
             
+    assert len(img.shape) == len(expected_shape), "Shape dimension mismatch"
+
     D, H, W = img.shape
     D_exp, H_exp, W_exp = expected_shape
     #print(img.shape)
@@ -69,8 +71,8 @@ def loadNii(directory, expected_shape):
         seg = np.vstack((seg, np.zeros((D_exp-D, H_exp, W_exp))))    
     
     #Shape check
-    assert img.shape[0] >= D_exp && img.shape[1] == H_exp && img.shape[2] == W_exp, "Patient {} img has shape {}".format(directory, img.shape)
-    assert seg.shape[0] >= D_exp && seg.shape[1] == H_exp && seg.shape[2] == W_exp, "Patient {} seg has shape {}".format(directory, seg.shape)
+    assert img.shape[0] >= D_exp and img.shape[1] == H_exp and img.shape[2] == W_exp, "Patient {} img has shape {}".format(directory, img.shape)
+    assert seg.shape[0] >= D_exp and seg.shape[1] == H_exp and seg.shape[2] == W_exp, "Patient {} seg has shape {}".format(directory, seg.shape)
     
     return img, seg
 
