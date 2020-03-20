@@ -52,6 +52,15 @@ def loadNii(directory, expected_shape):
 
     height_downsample_factor = H // H_exp
     width_downsample_factor = W // W_exp
+
+    #pad around the img
+    if H % height_downsample_factor != 0 :
+        img = np.vstack((img, np.zeros((D, H_exp*(H//H_exp + 1)-H, W))))
+
+    if W % width_downsample_factor != 0:
+        D, H, W = img.shape
+        img = np.hstack((img, np.zeros((D, H, W_exp*(W//W_exp +1)-W))))
+
     
     #Reject data with bad dimensions
     if height_downsample_factor == 0 or width_downsample_factor == 0:

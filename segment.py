@@ -20,7 +20,7 @@ parser = argparse.ArgumentParser(description='Performs 3D segmentation of Breast
 
 parser.add_argument('--src', action='store', dest='src', help='The source file', required=True)
 parser.add_argument('--out', action='store', dest='out_dir', help='The output directory', required=True)
-parser.add_argument('--checkpoint', action='store', dest='checkpoint', help='Saved checkpoint', required=False, default="checkpoint_models/v1/best_model_file_90.pth")
+parser.add_argument('--checkpoint', action='store', dest='checkpoint', help='Saved checkpoint', required=False, default="checkpoint_models/v1/axial/best_model_file_356.pth")
 parser.add_argument('--no-vae', action='store_true', help='Flag to disable VAE')
 parser.add_argument('--version', action='version', version='%(prog)s 1.0')
 
@@ -30,7 +30,7 @@ def loadConfig(args):
     config = dict()
     config["cuda_devices"] = None
     config["VAE_enable"] = not args.no_vae  # Boolean. If True, will enable the VAE module.
-    #config["best_model_file"] = "checkpoint_models/v1/best_model_file_38.pth"
+    config["best_model_file"] = "checkpoint_models/v1/axial/best_model_file_356.pth"
     config["best_model_file"] = args.checkpoint
     config["input_file"] = args.src
 
@@ -54,12 +54,13 @@ def loadModel(config, USE_GPU = True):
 def segment(model, config):
 
     #Load input
-    img = nib.load(config["input_file"]).get_data()
+    img = padBadDim(nib.load(config["input_file"]).get_data())
     D, H, W = img.shape
     print(img.shape)
     height_downsample_factor = H//128
     width_downsample_factor = W//128
 
+    
     final_output = np.zeros((D, 128, 128))
 
     if D >= 128:
@@ -110,6 +111,21 @@ def segment(model, config):
     return final_output
 
 
+def padBadDim(img):
+    #pad around the img
+    D,H,W = img.shape
+    
+    if H % 128 != 0:
+        newDim = np.zeros((D, 128*(H//128 + 1)-H, W))
+        img = np.hstack((img, newDim))
+
+    if W % 128 != 0:
+        D, H, W = img.shape
+        newDim = np.zeros((D, H, 128*(W//128 + 1)-W))
+        img = np.concatenate((img, newDim),axis=2)
+    
+    return img
+        
 
 def saveAsNifti(data, directory, filename="prediction"):
     if not os.path.exists(directory):
@@ -127,3 +143,4 @@ def main(args):
         
 if __name__ == "__main__":
     main(args)
+
